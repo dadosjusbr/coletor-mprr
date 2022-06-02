@@ -44,51 +44,27 @@ func (c crawler) crawl() ([]string, error) {
 	ctx, cancel = context.WithTimeout(ctx, c.generalTimeout)
 	defer cancel()
 
-	// Navega até o site do MPRR e realiza seleções.
-	log.Println("\nNavegando até o site do MPRR...")
-	if err := c.siteNavigation(ctx); err != nil {
-		log.Fatalf("Erro ao tentar navegar até o site do MPRR: %q", err)
-	}
-	log.Println("Navegação realizada com sucesso!")
+	// Navega até o site do MPRR e realiza as seleções para baixar contracheques.
+	c.makeNavigationAndSelections(ctx, c.year, c.month, "contracheque")
+	paycheckFileName := c.downloadFilePath("contracheque")
 
-	log.Printf("Selecionando o mês %s...", c.month)
-	if err := c.selectMonth(ctx, c.month); err != nil {
-		log.Fatalf("Erro ao tentar selecionar o mês: %q", err)
-	}
-	log.Println("Mês selecionado com sucesso!")
-
-	log.Printf("Selecionando o ano %s...", c.year)
-	if err := c.selectYear(ctx, c.year); err != nil {
-		log.Fatalf("Erro ao tentar selecionar o ano: %q", err)
-	}
-	log.Println("Ano selecionado com sucesso!")
-
-	reportMap := map[string]string{
-		"contracheque":   "1",
-		"indenizatorias": "6",
-	}
-
-	log.Printf("Selecionando %s...", "contracheque")
-	if err := c.selectReport(ctx, reportMap["contracheque"]); err != nil {
-		log.Fatalf("Erro ao tentar selecionar %s: %q", "contracheque", err)
-	}
-	log.Println("Seleção realizada com sucesso!")
-	remunerationsFileName := c.downloadFilePath("contracheque")
-
-	if err := c.exportWorksheet(ctx, remunerationsFileName); err != nil {
+	// Realiza o download das planilhas
+	if err := c.exportWorksheet(ctx, paycheckFileName); err != nil {
 		log.Fatalf("Erro ao tentar fazer download: %q", err)
 	}
 	log.Println("Download realizado com sucesso!")
 
+	// Navega até o site do MPRR e realiza as seleções para baixar verbas indenizatórias.
 	c.makeNavigationAndSelections(ctx, c.year, c.month, "indenizatorias")
 	indenizationsFileName := c.downloadFilePath("indenizatorias")
 
+	// Realiza o download das planilhas
 	if err := c.exportWorksheet(ctx, indenizationsFileName); err != nil {
 		log.Fatalf("Erro ao tentar fazer download: %q", err)
 	}
 	log.Println("Download realizado com sucesso!")
 
-	return []string{remunerationsFileName, indenizationsFileName}, nil
+	return []string{paycheckFileName, indenizationsFileName}, nil
 }
 
 func (c crawler) makeNavigationAndSelections(ctx context.Context, year, month, report string) {
@@ -187,12 +163,12 @@ func (c crawler) exportWorksheet(ctx context.Context, fileName string) error {
 	log.Println("Botão de emitir planilha clicado com sucesso!")
 
 	log.Println("Verificando se há planilha...")
-	if !c.hasWorksheet(tctx) {
+	if !hasWorksheet(tctx) {
 		log.Println("Não há planilha para a data selecionada!")
 		os.Exit(4)
 	}
 
-	log.Println("Realizando download...")
+	log.Println("Clicando no botão de download...")
 	if err := c.clickInDownloadButton(tctx); err != nil {
 		return fmt.Errorf("Erro ao tentar clicar no botão de download: %v", err)
 	}
@@ -201,7 +177,7 @@ func (c crawler) exportWorksheet(ctx context.Context, fileName string) error {
 	time.Sleep(c.donwloadTimeout)
 
 	if err := renameDownload(c.outputFolder, fileName); err != nil {
-		return fmt.Errorf("Erro ao tentar renomear o arquivo (%s): %v", fileName, err)
+		return fmt.Errorf("Erro ao tentar renomear o arquivo para (%s): %v", fileName, err)
 	}
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
 		return fmt.Errorf("download do arquivo de %s não realizado", fileName)
@@ -227,13 +203,14 @@ func (c crawler) clickInDownloadButton(ctx context.Context) error {
 	)
 }
 
-func (c crawler) hasWorksheet(ctx context.Context) bool {
+func hasWorksheet(ctx context.Context) bool {
 	const divSelector = "body > div.wrapper > div > div > section.content > div.alert.alert-error > div"
-
+	tctx, tcancel := context.WithTimeout(ctx, 10*time.Second)
+	defer tcancel()
 	err := chromedp.Run(
-		ctx,
+		tctx,
 		chromedp.Query(divSelector),
-		chromedp.Sleep(c.timeBetweenSteps),
+		chromedp.Sleep(3*time.Second),
 	)
 	if err != nil {
 		return true
@@ -256,18 +233,25 @@ func renameDownload(output, fileName string) error {
 		return fmt.Errorf("erro lendo diretório %s: %v", output, err)
 	}
 	var newestFPath string
-	var newestTime int64 = 0
 	for _, f := range files {
 		fPath := filepath.Join(output, f.Name())
 		fi, err := os.Stat(fPath)
 		if err != nil {
 			return fmt.Errorf("erro obtendo informações sobre arquivo %s: %v", fPath, err)
 		}
-		currTime := fi.ModTime().Unix()
-		if currTime > newestTime {
-			newestTime = currTime
+
+		fileTime, _ := time.Parse(time.UnixDate, fi.ModTime().Format(time.UnixDate))
+		newTime, _ := time.Parse(time.UnixDate, time.Now().Format(time.UnixDate))
+		sub := newTime.Sub(fileTime).Seconds()
+
+		//Verifica se algum arquivo foi baixado nos últimos 40 segundos
+		if sub <= 40 {
 			newestFPath = fPath
 		}
+	}
+	// Se estiver vazio, é porque nenhum arquivo foi baixado nos últimos 40 segundos
+	if newestFPath == "" {
+		return fmt.Errorf("nenhum arquivo foi baixado")
 	}
 	// Renomeia o ultimo arquivo modificado.
 	if err := os.Rename(newestFPath, fileName); err != nil {
