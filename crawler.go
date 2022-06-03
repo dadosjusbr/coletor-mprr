@@ -251,7 +251,8 @@ func renameDownload(output, fileName string) error {
 	}
 	// Se estiver vazio, é porque nenhum arquivo foi baixado nos últimos 40 segundos
 	if newestFPath == "" {
-		return fmt.Errorf("nenhum arquivo foi baixado")
+		log.Println("Planilha não disponível para download!")
+		os.Exit(4)
 	}
 	// Renomeia o ultimo arquivo modificado.
 	if err := os.Rename(newestFPath, fileName); err != nil {
