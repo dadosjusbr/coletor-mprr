@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -70,7 +72,8 @@ func main() {
 	}
 	downloads, err := c.crawl()
 	if err != nil {
-		log.Fatalf("Error crawling: %q", err)
+		log.Fatalf("Error crawling (%s, %s, %s): %v", year, month, outputFolder, err)
 	}
-	log.Printf("Downloaded %d files", len(downloads))
+
+	fmt.Println(strings.Join(downloads, "\n"))
 }
