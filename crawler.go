@@ -153,7 +153,7 @@ func (c crawler) selectReport(ctx context.Context, tableOption string) error {
 }
 
 func (c crawler) exportWorksheet(ctx context.Context, fileName string) error {
-	tctx, tcancel := context.WithTimeout(ctx, 30*time.Second)
+	tctx, tcancel := context.WithTimeout(ctx, 50*time.Second)
 	defer tcancel()
 
 	log.Println("Clicando no botão de emitir planilha...")
