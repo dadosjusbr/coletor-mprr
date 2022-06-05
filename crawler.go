@@ -67,6 +67,7 @@ func (c crawler) crawl() ([]string, error) {
 	return []string{paycheckFileName, indenizationsFileName}, nil
 }
 
+//Realiza a navegação até o site do MPRR e realiza as seleções de ano, mês e tipo de relatório.
 func (c crawler) makeNavigationAndSelections(ctx context.Context, year, month, report string) {
 	log.Println("\nNavegando até o site do MPRR...")
 	if err := c.siteNavigation(ctx); err != nil {
@@ -98,6 +99,7 @@ func (c crawler) makeNavigationAndSelections(ctx context.Context, year, month, r
 	log.Println("Seleção realizada com sucesso!")
 }
 
+//Realiza apenas a navegação até o site do MPRR, já selecionando a aba de contracheques.
 func (c crawler) siteNavigation(ctx context.Context) error {
 	const baseURL = `https://www.mprr.mp.br/web/transparencia/opcoesvencimentos`
 
@@ -116,6 +118,7 @@ func (c crawler) siteNavigation(ctx context.Context) error {
 	)
 }
 
+//Seleciona o mês a ser coletado
 func (c crawler) selectMonth(ctx context.Context, month string) error {
 	const monthSelector = `#mes`
 
@@ -127,6 +130,7 @@ func (c crawler) selectMonth(ctx context.Context, month string) error {
 	)
 }
 
+//Seleciona o ano a ser coletado
 func (c crawler) selectYear(ctx context.Context, year string) error {
 	const yearSelector = `#ano`
 
@@ -138,6 +142,7 @@ func (c crawler) selectYear(ctx context.Context, year string) error {
 	)
 }
 
+//Seleciona o tipo de relatório a ser coletado
 func (c crawler) selectReport(ctx context.Context, tableOption string) error {
 	const boardSelector = `#quadro`
 
@@ -152,6 +157,7 @@ func (c crawler) selectReport(ctx context.Context, tableOption string) error {
 	)
 }
 
+//Realiza o download do arquivo de planilha
 func (c crawler) exportWorksheet(ctx context.Context, fileName string) error {
 	tctx, tcancel := context.WithTimeout(ctx, 50*time.Second)
 	defer tcancel()
@@ -185,6 +191,7 @@ func (c crawler) exportWorksheet(ctx context.Context, fileName string) error {
 	return nil
 }
 
+//Clica no botão de emitir planilha
 func (c crawler) clickInEmitButton(ctx context.Context) error {
 	const buttonSelector = `/html/body/div[1]/div/div/section[2]/div/div/div[6]/div/div/div/div/div/div/div[2]/form/button`
 	return chromedp.Run(
@@ -194,6 +201,7 @@ func (c crawler) clickInEmitButton(ctx context.Context) error {
 	)
 }
 
+//Clica no botão de baixar a planilha
 func (c crawler) clickInDownloadButton(ctx context.Context) error {
 	const buttonSelector = `/html/body/a[1]`
 	return chromedp.Run(
@@ -203,6 +211,7 @@ func (c crawler) clickInDownloadButton(ctx context.Context) error {
 	)
 }
 
+//Verificar se há planilha para a data selecionada
 func hasWorksheet(ctx context.Context) bool {
 	const divSelector = "body > div.wrapper > div > div > section.content > div.alert.alert-error > div"
 	tctx, tcancel := context.WithTimeout(ctx, 10*time.Second)
@@ -226,6 +235,7 @@ func (c crawler) downloadFilePath(prefix string) string {
 	)
 }
 
+//Renomeia o arquivo após o download
 func renameDownload(output, fileName string) error {
 	// Identifica qual foi o ultimo arquivo
 	files, err := os.ReadDir(output)
