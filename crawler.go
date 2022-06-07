@@ -124,13 +124,13 @@ func (c crawler) makeNavigationAndSelections(ctx context.Context, year, month, r
 
 //Realiza apenas a navegação até o site do MPRR, já selecionando a aba de contracheques.
 func (c crawler) siteNavigation(ctx context.Context) error {
-	const baseURL = `https://www.mprr.mp.br/web/transparencia/opcoesvencimentos`
-
 	return chromedp.Run(
 		ctx,
-		chromedp.Navigate(baseURL),
+		//Navega até o site do MPRR
+		chromedp.Navigate("https://www.mprr.mp.br/web/transparencia/opcoesvencimentos"),
 		chromedp.Sleep(c.timeBetweenSteps),
 
+		//Clica na aba de contracheque
 		chromedp.Click(`//*[@id="tab6"]/div/div/ul[2]/li[2]/a`, chromedp.BySearch),
 		chromedp.Sleep(c.timeBetweenSteps),
 
@@ -142,7 +142,7 @@ func (c crawler) siteNavigation(ctx context.Context) error {
 
 //Seleciona o tipo de relatório a ser coletado
 func (c crawler) selectReport(ctx context.Context, tableOption string) error {
-	const boardSelector = `#quadro`
+	const boardSelector = "#quadro"
 
 	return chromedp.Run(
 		ctx,
@@ -159,11 +159,9 @@ func (c crawler) exportWorksheet(ctx context.Context, fileName string) error {
 	tctx, tcancel := context.WithTimeout(ctx, 50*time.Second)
 	defer tcancel()
 
-	buttonSelector := `/html/body/div[1]/div/div/section[2]/div/div/div[6]/div/div/div/div/div/div/div[2]/form/button`
-
 	log.Println("Clicando no botão de emitir planilha...")
-	if err := c.clickButton(tctx, buttonSelector); err != nil {
-		return status.NewError(status.ERROR, fmt.Errorf("Erro ao tentar clicar no botão de emitir planilha: %v", err))
+	if err := c.clickButton(tctx, "/html/body/div[1]/div/div/section[2]/div/div/div[6]/div/div/div/div/div/div/div[2]/form/button"); err != nil {
+		return status.NewError(status.Unknown, fmt.Errorf("Erro ao tentar clicar no botão de emitir planilha: %v", err))
 	}
 	log.Println("Botão de emitir planilha clicado com sucesso!")
 
@@ -172,22 +170,20 @@ func (c crawler) exportWorksheet(ctx context.Context, fileName string) error {
 		return status.NewError(status.DataUnavailable, fmt.Errorf("Não há planilha para a data selecionada!"))
 	}
 
-	buttonSelector = `/html/body/a[1]`
-
 	log.Println("Clicando no botão de download...")
-	if err := c.clickButton(tctx, buttonSelector); err != nil {
-		return status.NewError(status.ERROR, fmt.Errorf("Erro ao tentar clicar no botão de download: %v", err))
+	if err := c.clickButton(tctx, "/html/body/a[1]"); err != nil {
+		return status.NewError(status.Unknown, fmt.Errorf("Erro ao tentar clicar no botão de download: %v", err))
 	}
 	log.Println("Botão de download clicado com sucesso!")
 
 	time.Sleep(c.donwloadTimeout)
 
 	if err := renameDownload(c.outputFolder, fileName); err != nil {
-		return status.NewError(status.ERROR, fmt.Errorf("Erro ao tentar renomear o arquivo para (%s): %v", fileName, err))
+		return status.NewError(status.Unknown, fmt.Errorf("Erro ao tentar renomear o arquivo para (%s): %v", fileName, err))
 	}
 
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		return status.NewError(status.ERROR, fmt.Errorf("download do arquivo de %s não realizado", fileName))
+		return status.NewError(status.Unknown, fmt.Errorf("download do arquivo de %s não realizado", fileName))
 	}
 
 	return nil
