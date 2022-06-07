@@ -10,10 +10,9 @@ import (
 type Code int
 
 const (
-	OK              Code = 0
-	ERROR           Code = 1
+	Ok              Code = 0
+	Unknown         Code = 1
 	DataUnavailable Code = 4
-	Unknown         Code = 6
 )
 
 // ExitFromError logs the error message and call os.Exit
