@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/chromedp/cdproto/browser"
@@ -179,6 +180,13 @@ func (c crawler) exportWorksheet(ctx context.Context, fileName string) error {
 	time.Sleep(c.donwloadTimeout)
 
 	if err := renameDownload(c.outputFolder, fileName); err != nil {
+		/* Se esta condição for verdadeira, significa que o arquivo não foi renomeado
+		por ser inexistente. Ou seja, o arquivo não foi baixado mesmo que o botão
+		de download tenha sido clicado(problema no site do MPRR).*/
+		if strings.Contains(err.Error(), "no such file or directory") {
+			return status.NewError(status.DataUnavailable, fmt.Errorf("Planilha indisponível para download! Erro: %v", err))
+		}
+
 		return status.NewError(status.Unknown, fmt.Errorf("Erro ao tentar renomear o arquivo para (%s): %v", fileName, err))
 	}
 
